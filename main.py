@@ -1,9 +1,21 @@
-from fastapi import FastAPI, Request
+from typing import Mapping, Any, Annotated
+
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi import status
+from pymongo.asynchronous.collection import AsyncCollection
 
+from db import db
+from dependencies import get_current_user
+from rides.exceptions import RideNotFound
 from users import login
-from users.exceptions import InvalidToken
+from users.exceptions import InvalidToken, UnauthorizedOperation
+from rides import rides
+from users.models import UserDatabase
+
+rides_collection: AsyncCollection[Mapping[str, Any]] = db["rides"]
+
 
 app = FastAPI()
 
@@ -22,21 +34,55 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.exception_handler(InvalidToken)
-async def InvalidToken_exception_handler(request:Request,exc:InvalidToken):
+async def InvalidToken_exception_handler(request: Request, exc: InvalidToken):
     return JSONResponse(
         status_code=401,
         content={
-            "detail":exc.detail,
+            "detail": exc.detail,
             "received id": exc.id_token
         },
     )
 
+
+@app.exception_handler(RideNotFound)
+async def RideNotFound_exception_handler(request: Request, exc: RideNotFound):
+    return JSONResponse(
+        content={
+            "detail": exc.detail,
+            "requested ride id": exc.id,
+        },
+        status_code=status.HTTP_404_NOT_FOUND
+    )
+
+
+@app.exception_handler(UnauthorizedOperation)
+async def UnauthorizedOperation_exception_handler(request: Request, exc: UnauthorizedOperation):
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={
+            "detail": exc.detail,
+            "resource id": exc.resource_id
+        }
+    )
+
+
 app.include_router(login.router)
+app.include_router(rides.router)
+
 
 @app.get("/")
 async def base_handler():
     return "Eventually you can hope to get some documentation from this endpoint"
 
-
-
+@app.get("/my_rides")
+async def my_rides_get_handler(current_user:Annotated[UserDatabase,Depends(get_current_user)],lim:int = 10):
+    cursor = rides_collection.find({"created_by":current_user.id}).limit(lim)
+    user_rides = [ride async for ride in cursor]
+    return JSONResponse(
+        content={
+            "rides":user_rides
+        },
+        status_code=status.HTTP_200_OK
+    )

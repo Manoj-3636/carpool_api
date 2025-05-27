@@ -1,7 +1,7 @@
 from pydantic import BaseModel, root_validator, Field
 
 
-class UserLogin(BaseModel):
+class UserReq(BaseModel):
     email:str
     given_name:str
 
@@ -9,7 +9,7 @@ class ReceivedToken(BaseModel):
     id_token:str
 
 #This class wil help eventually parsing more information from the request
-class UserDatabase(UserLogin):
+class UserDatabase(UserReq):
     id: str = Field(...,alias = "_id")  # Will be autofilled from email
 
 class AppToken(BaseModel):

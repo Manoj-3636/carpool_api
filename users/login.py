@@ -12,9 +12,8 @@ from fastapi import  Depends
 from fastapi import APIRouter
 from db import db
 from dotenv import load_dotenv
-from fastapi.params import  Header
 from users.exceptions import InvalidToken
-from users.models import UserDatabase,UserLogin,ReceivedToken
+from users.models import UserDatabase,UserReq,ReceivedToken
 
 load_dotenv(override=True)
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -36,14 +35,14 @@ def create_access_token(data:dict,expires_delta:timedelta = timedelta(weeks=1)):
 async def user_from_id(received_token:ReceivedToken):
     try:
         id_info = google_id_token.verify_oauth2_token(received_token.id_token, grequests.Request(), GOOGLE_CLIENT_ID)
-        user: UserLogin = UserLogin(**id_info)
+        user: UserReq = UserReq(**id_info)
         return user
 
     except ValueError:
         raise InvalidToken(received_token.id_token,"Google Authentication Failed")
 
 
-async def check_add_and_return(user:UserLogin):
+async def check_add_and_return(user:UserReq):
     # returns if the user already exists
     found = await users_collection.find_one({"_id" : user.email[1:9]})
     if found:
@@ -67,7 +66,7 @@ def is_token_valid(access_token):
 
 
 @router.post("/token")
-async def login_handler(user:Annotated[UserLogin,Depends(user_from_id)]):
+async def login_handler(user:Annotated[UserReq,Depends(user_from_id)]):
     print(user.given_name,user.email)
     userdb = await check_add_and_return(user)
     return create_access_token({"sub":userdb.id})
