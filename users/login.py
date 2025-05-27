@@ -1,36 +1,37 @@
 import os
-import pprint
+
+from datetime import datetime, timedelta, timezone
+
 from typing import Annotated
+
+import jwt
+from fastapi.encoders import jsonable_encoder
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as grequests
-from fastapi import HTTPException, Depends
+from fastapi import  Depends
 from fastapi import APIRouter
-from pydantic import BaseModel
-
 from db import db
 from dotenv import load_dotenv
-
+from fastapi.params import  Header
 from users.exceptions import InvalidToken
+from users.models import UserDatabase,UserLogin,ReceivedToken
 
 load_dotenv(override=True)
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+SECRET_KEY = os.getenv("SECRET_KEY")
 users_collection = db["users"]
-
-
-
+ALGORITHM = "HS256"
 router = APIRouter(
     prefix="/login",
     tags = ["users"],
 )
 
-class UserLogin(BaseModel):
-    email:str
-    given_name:str
-
-class ReceivedToken(BaseModel):
-    id_token:str
-
-#     This class wil help eventually parsing more information from the request
+def create_access_token(data:dict,expires_delta:timedelta = timedelta(weeks=1)):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + expires_delta
+    to_encode.update({"exp":expire})
+    encoded_jwt = jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
+    return encoded_jwt
 
 async def user_from_id(received_token:ReceivedToken):
     try:
@@ -42,10 +43,34 @@ async def user_from_id(received_token:ReceivedToken):
         raise InvalidToken(received_token.id_token,"Google Authentication Failed")
 
 
+async def check_add_and_return(user:UserLogin):
+    # returns if the user already exists
+    found = await users_collection.find_one({"_id" : user.email[1:9]})
+    if found:
+        return UserDatabase(**found)
+    userdb = UserDatabase(email=user.email,given_name=user.given_name,_id=user.email[1:9])
+    await users_collection.insert_one(jsonable_encoder(userdb))
+    return userdb
+
+
+def is_token_valid(access_token):
+    print("Checking",access_token)
+    if not access_token:
+        return False
+
+    try:
+        _id = jwt.decode(access_token,SECRET_KEY,algorithms=[ALGORITHM])
+        return True
+    except ValueError:
+        return False
+
+
 
 @router.post("/token")
 async def login_handler(user:Annotated[UserLogin,Depends(user_from_id)]):
-    print(user.email)
+    print(user.given_name,user.email)
+    userdb = await check_add_and_return(user)
+    return create_access_token({"sub":userdb.id})
 
 
 
