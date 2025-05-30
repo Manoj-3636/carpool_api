@@ -5,9 +5,9 @@ class InvalidToken(Exception):
         self.detail = detail
 
 class UserNotFound(Exception):
-    def __init__(self,access_token,detail):
-        super().__init__(detail)
-        self.access_token = access_token
+    def __init__(self,user_id,detail):
+        self.user_id = user_id
+        self.detail = detail
 
 class UnauthorizedOperation(Exception):
     def __init__(self,detail,resource_id):

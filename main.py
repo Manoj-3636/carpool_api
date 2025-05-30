@@ -10,8 +10,8 @@ from db import db
 from dependencies import get_current_user
 from rides import rides
 from rides.exceptions import RideNotFound
-from users import login
-from users.exceptions import InvalidToken, UnauthorizedOperation
+from users import login,users
+from users.exceptions import InvalidToken, UnauthorizedOperation, UserNotFound
 from users.models import UserDatabase
 
 rides_collection: AsyncCollection[Mapping[str, Any]] = db["rides"]
@@ -67,10 +67,19 @@ async def UnauthorizedOperation_exception_handler(request: Request, exc: Unautho
         }
     )
 
+@app.exception_handler(UserNotFound)
+async def UserNotFound_exception_handler(request:Request,exc:UserNotFound):
+    return JSONResponse(
+        content={
+            "detail":exc.detail,
+            "Requested Id":exc.user_id,
+        },
+        status_code=404
+    )
 
 app.include_router(login.router)
 app.include_router(rides.router)
-
+app.include_router(users.router)
 
 @app.get("/")
 async def base_handler():

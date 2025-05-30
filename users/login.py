@@ -37,6 +37,7 @@ async def user_from_id(received_token:ReceivedToken):
     try:
         id_info = google_id_token.verify_oauth2_token(received_token.id_token, grequests.Request(), GOOGLE_CLIENT_ID)
         user: UserReq = UserReq(**id_info)
+        # This allows a modular system that only by changing the user req model additional fields can be added
         return user
 
     except ValueError:
@@ -48,7 +49,8 @@ async def check_add_and_return(user:UserReq):
     found = await users_collection.find_one({"_id" : user.email[1:9]})
     if found:
         return UserDatabase(**found)
-    userdb = UserDatabase(email=user.email,name=user.name,_id=user.email[1:9])
+    userdb = UserDatabase(**user.model_dump(),_id=user.email[1:9])
+    # Carries forward the idea of modularity
     await users_collection.insert_one(jsonable_encoder(userdb))
     return userdb
 
