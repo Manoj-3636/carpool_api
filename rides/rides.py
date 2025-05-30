@@ -28,7 +28,7 @@ async def rides_put_handler(
         current_user: Annotated[UserDatabase, Depends(get_current_user)]
 ) -> JSONResponse:
     ride_db: RideDB = RideDB(_id=str(uuid4()),
-                             user_ids=[],
+                             users=[],
                              created_by=current_user.id,
                              last_updated=datetime.now().replace(second=0, microsecond=0),
                              **(ride_req.model_dump()))
@@ -48,7 +48,7 @@ async def rides_get_handler(current_user:Annotated[UserDatabase,Depends(get_curr
         rides.append(
             {
                 **ride,
-                "is_in": (current_user.id in ride.get("user_ids")),
+                "is_in": (current_user.id in ride.get("users")),
                 "is_owner": (ride.get("created_by") == current_user.id),
             }
         )
@@ -62,19 +62,19 @@ async def rides_get_handler(current_user:Annotated[UserDatabase,Depends(get_curr
 
 @router.get("/{ride_id}")
 async def rides_get_handler(ride_id: str,current_user:Annotated[UserDatabase,Depends(get_current_user)]):
-    ride_req = await rides_collection.find_one({"_id": ride_id})
-    ride_req = {
-        **ride_req,
-        "is_in": ride_req.get("user_ids").includes(current_user.id),
-        "is_owner":(ride_req.get("created_by") == current_user.id),
+    ride_res = await rides_collection.find_one({"_id": ride_id})
+    ride_res = {
+        **ride_res,
+        "is_in": ride_res.get("user_ids").includes(current_user.id),
+        "is_owner":(ride_res.get("created_by") == current_user.id),
     }
     #is_in and is_owner must be verified by backend again when accepting a change as these requests can
     # be intercepted and changed
-    if ride_req:
+    if ride_res:
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
-                "ride": ride_req
+                "ride": ride_res
             }
         )
 

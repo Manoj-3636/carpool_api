@@ -19,3 +19,4 @@ class AppToken(BaseModel):
 
 class AppTokenData(BaseModel):
     id:str = Field(...,alias = "_id")
+

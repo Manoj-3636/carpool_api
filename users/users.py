@@ -22,7 +22,7 @@ async def get_user(current_user:Annotated[UserDatabase,Depends(get_current_user)
 
     if req_user:
         return JSONResponse(
-            content = req_user,
+            content ={"user":req_user},
             status_code=200
         )
 

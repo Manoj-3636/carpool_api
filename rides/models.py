@@ -3,6 +3,9 @@ from pydantic import Field
 from datetime import datetime
 from bson import ObjectId
 
+from users.models import UserDatabase
+
+
 # class RideDB(BaseModel):
 #     id:str|None = Field(...,alias = "_id")
 #     date:datetime
@@ -21,6 +24,6 @@ class RideReq(BaseModel):
 
 class RideDB(RideReq):
     id: str  = Field(alias="_id")
-    user_ids:list[str]
+    users:list[str]
     created_by: str
     last_updated: datetime
