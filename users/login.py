@@ -1,19 +1,20 @@
 import os
-
 from datetime import datetime, timedelta, timezone
-
 from typing import Annotated
 
 import jwt
-from fastapi.encoders import jsonable_encoder
-from google.oauth2 import id_token as google_id_token
-from google.auth.transport import requests as grequests
-from fastapi import  Depends
-from fastapi import APIRouter
-from db import db
 from dotenv import load_dotenv
+from fastapi import APIRouter
+from fastapi import Depends,Response
+from fastapi.params import Cookie
+from fastapi.encoders import jsonable_encoder
+from google.auth.transport import requests as grequests
+from google.oauth2 import id_token as google_id_token
+from starlette.responses import JSONResponse
+
+from db import db
 from users.exceptions import InvalidToken
-from users.models import UserDatabase,UserReq,ReceivedToken
+from users.models import UserDatabase, UserReq, ReceivedToken
 
 load_dotenv(override=True)
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -47,7 +48,7 @@ async def check_add_and_return(user:UserReq):
     found = await users_collection.find_one({"_id" : user.email[1:9]})
     if found:
         return UserDatabase(**found)
-    userdb = UserDatabase(email=user.email,given_name=user.given_name,_id=user.email[1:9])
+    userdb = UserDatabase(email=user.email,name=user.name,_id=user.email[1:9])
     await users_collection.insert_one(jsonable_encoder(userdb))
     return userdb
 
@@ -67,10 +68,25 @@ def is_token_valid(access_token):
 
 @router.post("/token")
 async def login_handler(user:Annotated[UserReq,Depends(user_from_id)]):
-    print(user.given_name,user.email)
+    print(user.name,user.email)
     userdb = await check_add_and_return(user)
-    return create_access_token({"sub":userdb.id})
+    jwt = create_access_token({"sub":userdb.id})
+    response = JSONResponse(content = "Success")
+    response.set_cookie(key="access_token",value=jwt,httponly=True)
+    return response
 
+@router.get("/status")
+async def login_status_handler(access_token:Annotated[str,Cookie()] = None):
+    if is_token_valid(access_token):
+        return JSONResponse(
+            content={"logged_in":True},
+            status_code = 200
+        )
 
+    else:
+        return JSONResponse(
+            content={"logged_in":False},
+            status_code=200,
+        )
 
 

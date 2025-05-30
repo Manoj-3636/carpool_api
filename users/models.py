@@ -3,7 +3,7 @@ from pydantic import BaseModel, root_validator, Field
 
 class UserReq(BaseModel):
     email:str
-    given_name:str
+    name:str
 
 class ReceivedToken(BaseModel):
     id_token:str

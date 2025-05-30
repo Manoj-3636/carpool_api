@@ -1,17 +1,17 @@
 from typing import Mapping, Any, Annotated
 
 from fastapi import FastAPI, Request, Depends
+from fastapi import status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi import status
 from pymongo.asynchronous.collection import AsyncCollection
 
 from db import db
 from dependencies import get_current_user
+from rides import rides
 from rides.exceptions import RideNotFound
 from users import login
 from users.exceptions import InvalidToken, UnauthorizedOperation
-from rides import rides
 from users.models import UserDatabase
 
 rides_collection: AsyncCollection[Mapping[str, Any]] = db["rides"]
@@ -23,7 +23,7 @@ app = FastAPI()
 # using app.include_router()
 origins = [
     "http://localhost:3000",
-    "http://localhost:8080",
+    "http://localhost:4200",
 ]
 
 app.add_middleware(

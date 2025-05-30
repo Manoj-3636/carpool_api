@@ -4,8 +4,7 @@ from fastapi import APIRouter, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
-from pymongo.asynchronous.collection import AsyncCollection, ReturnDocument
-
+from pymongo.asynchronous.collection import AsyncCollection
 from users.exceptions import UnauthorizedOperation
 from .exceptions import RideNotFound
 from .models import RideReq, RideDB
@@ -42,9 +41,17 @@ async def rides_put_handler(
 
 
 @router.get("")
-async def rides_get_handler(lim: int = 10):
+async def rides_get_handler(current_user:Annotated[UserDatabase,Depends(get_current_user)],lim: int = 10,):
     cursor = rides_collection.find().sort("last_updated", -1).limit(lim)
-    rides = [ride async for ride in cursor]
+    rides = []
+    async for ride in cursor:
+        rides.append(
+            {
+                **ride,
+                "is_in": (current_user.id in ride.get("user_ids")),
+                "is_owner": (ride.get("created_by") == current_user.id),
+            }
+        )
     return JSONResponse(
         content={
             "rides": rides,
@@ -54,8 +61,15 @@ async def rides_get_handler(lim: int = 10):
 
 
 @router.get("/{ride_id}")
-async def rides_get_handler(ride_id: str):
+async def rides_get_handler(ride_id: str,current_user:Annotated[UserDatabase,Depends(get_current_user)]):
     ride_req = await rides_collection.find_one({"_id": ride_id})
+    ride_req = {
+        **ride_req,
+        "is_in": ride_req.get("user_ids").includes(current_user.id),
+        "is_owner":(ride_req.get("created_by") == current_user.id),
+    }
+    #is_in and is_owner must be verified by backend again when accepting a change as these requests can
+    # be intercepted and changed
     if ride_req:
         return JSONResponse(
             status_code=status.HTTP_200_OK,
