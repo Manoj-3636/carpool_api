@@ -3,7 +3,7 @@ from pydantic import Field
 from datetime import datetime
 from bson import ObjectId
 
-from users.models import UserDatabase
+from users.models import UserDatabase, UserRes
 
 
 # class RideDB(BaseModel):
@@ -27,3 +27,7 @@ class RideDB(RideReq):
     users:list[str]
     created_by: str
     last_updated: datetime
+
+class RideRes(RideDB):
+    users:list[UserRes]
+    created_by:UserRes

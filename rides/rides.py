@@ -12,6 +12,7 @@ from dependencies import get_current_user
 from users.models import UserDatabase
 from db import db
 from uuid import uuid4
+from users.users import get_username
 
 rides_collection: AsyncCollection[Mapping[str, Any]] = db["rides"]
 
@@ -41,13 +42,16 @@ async def rides_put_handler(
 
 
 @router.get("")
-async def rides_get_handler(current_user:Annotated[UserDatabase,Depends(get_current_user)],lim: int = 10,):
+async def rides_get_handler(current_user: Annotated[UserDatabase, Depends(get_current_user)], lim: int = 10, ):
     cursor = rides_collection.find().sort("last_updated", -1).limit(lim)
     rides = []
     async for ride in cursor:
         rides.append(
             {
                 **ride,
+                "created_by": {"id": ride.get("created_by"),
+                               "name": await get_username(ride.get("created_by")),},
+                "users": [({"id": user, "name": await get_username(user)}) for user in ride.get("users")],
                 "is_in": (current_user.id in ride.get("users")),
                 "is_owner": (ride.get("created_by") == current_user.id),
             }
@@ -61,14 +65,14 @@ async def rides_get_handler(current_user:Annotated[UserDatabase,Depends(get_curr
 
 
 @router.get("/{ride_id}")
-async def rides_get_handler(ride_id: str,current_user:Annotated[UserDatabase,Depends(get_current_user)]):
+async def rides_get_handler(ride_id: str, current_user: Annotated[UserDatabase, Depends(get_current_user)]):
     ride_res = await rides_collection.find_one({"_id": ride_id})
     ride_res = {
         **ride_res,
         "is_in": ride_res.get("user_ids").includes(current_user.id),
-        "is_owner":(ride_res.get("created_by") == current_user.id),
+        "is_owner": (ride_res.get("created_by") == current_user.id),
     }
-    #is_in and is_owner must be verified by backend again when accepting a change as these requests can
+    # is_in and is_owner must be verified by backend again when accepting a change as these requests can
     # be intercepted and changed
     if ride_res:
         return JSONResponse(
@@ -83,22 +87,21 @@ async def rides_get_handler(ride_id: str,current_user:Annotated[UserDatabase,Dep
 
 
 @router.patch("/{ride_id}")
-async def rides_get_handler(ride_id: str, ride_req: RideReq,current_user:Annotated[UserDatabase,Depends(get_current_user)]):
-    ride_before = await rides_collection.find_one({"_id":ride_id})
+async def rides_get_handler(ride_id: str, ride_req: RideReq,
+                            current_user: Annotated[UserDatabase, Depends(get_current_user)]):
+    ride_before = await rides_collection.find_one({"_id": ride_id})
     if not ride_before:
         raise RideNotFound("No ride found to update", ride_id)
     if not ride_before.get("created_by") == current_user.id:
-        raise UnauthorizedOperation("Update not authorized",ride_id)
+        raise UnauthorizedOperation("Update not authorized", ride_id)
 
     update_data = {
         **ride_req.model_dump(),
         "last_updated": datetime.now().replace(second=0, microsecond=0)
     }
 
-    await rides_collection.update_one(ride_before,{"$set":jsonable_encoder(update_data)})
+    await rides_collection.update_one(ride_before, {"$set": jsonable_encoder(update_data)})
     return JSONResponse(
         content=jsonable_encoder(update_data),
         status_code=status.HTTP_200_OK,
     )
-
-

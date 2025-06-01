@@ -16,6 +16,10 @@ router = APIRouter(
 
 #Listing current user as a dependency helps enforce security also gives scope to further functionality
 # Like is friend etc
+
+async def get_username(_id:str):
+    user_db = await users_collection.find_one({"_id":_id})
+    return user_db.get("name")
 @router.get("/{user_id}")
 async def get_user(current_user:Annotated[UserDatabase,Depends(get_current_user)],user_id:str):
     req_user = await users_collection.find_one({"_id" : user_id})
