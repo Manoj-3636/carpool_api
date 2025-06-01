@@ -34,7 +34,7 @@ async def rides_put_handler(
                              last_updated=datetime.now().replace(second=0, microsecond=0),
                              **(ride_req.model_dump()))
 
-    await rides_collection.insert_one(jsonable_encoder(ride_db))
+    await rides_collection.insert_one(jsonable_encoder(ride_db,by_alias=True))
     return JSONResponse(
         content={"Success"},
         status_code=status.HTTP_201_CREATED,
@@ -46,6 +46,9 @@ async def rides_get_handler(current_user: Annotated[UserDatabase, Depends(get_cu
     cursor = rides_collection.find().sort("last_updated", -1).limit(lim)
     rides = []
     async for ride in cursor:
+        ride = {**ride}
+        ride["id"] = ride["_id"]
+        del ride["_id"]
         rides.append(
             {
                 **ride,

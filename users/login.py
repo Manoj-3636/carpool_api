@@ -49,9 +49,9 @@ async def check_add_and_return(user:UserReq):
     found = await users_collection.find_one({"_id" : user.email[1:9]})
     if found:
         return UserDatabase(**found)
-    userdb = UserDatabase(**user.model_dump(),_id=user.email[1:9])
+    userdb = UserDatabase(**jsonable_encoder(user),_id=user.email[1:9])
     # Carries forward the idea of modularity
-    await users_collection.insert_one(jsonable_encoder(userdb))
+    await users_collection.insert_one(jsonable_encoder(userdb,by_alias=True))
     return userdb
 
 
@@ -73,7 +73,7 @@ async def login_handler(user:Annotated[UserReq,Depends(user_from_id)]):
     print(user.name,user.email)
     userdb = await check_add_and_return(user)
     jwt = create_access_token({"sub":userdb.id})
-    response = JSONResponse(content = {"user":userdb.model_dump()})
+    response = JSONResponse(content = {"user":jsonable_encoder(userdb,by_alias=False)})
     response.set_cookie(key="access_token",value=jwt,httponly=True)
     return response
 

@@ -23,7 +23,9 @@ async def get_username(_id:str):
 @router.get("/{user_id}")
 async def get_user(current_user:Annotated[UserDatabase,Depends(get_current_user)],user_id:str):
     req_user = await users_collection.find_one({"_id" : user_id})
-
+    req_user["id"] = req_user["_id"]
+    del req_user["_id"]
+    # To send with field name as id and maintain homogeneity throughout the codebase
     if req_user:
         return JSONResponse(
             content ={"user":req_user},
