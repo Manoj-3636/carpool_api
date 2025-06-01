@@ -28,15 +28,23 @@ async def rides_put_handler(
         ride_req: RideReq,
         current_user: Annotated[UserDatabase, Depends(get_current_user)]
 ) -> JSONResponse:
+    print(type(ride_req),ride_req,)
     ride_db: RideDB = RideDB(_id=str(uuid4()),
-                             users=[],
+                             users=[current_user.id],
                              created_by=current_user.id,
                              last_updated=datetime.now().replace(second=0, microsecond=0),
-                             **(ride_req.model_dump()))
+                             **jsonable_encoder(ride_req))
 
-    await rides_collection.insert_one(jsonable_encoder(ride_db,by_alias=True))
+    await rides_collection.insert_one(jsonable_encoder(ride_db, by_alias=True))
     return JSONResponse(
-        content={"Success"},
+        content={"ride":{
+            **jsonable_encoder(ride_db),
+            "created_by": {"id": ride_db.created_by,
+                           "name": await get_username(ride_db.created_by), },
+            "users": [({"id": user, "name": await get_username(user)}) for user in ride_db.users],
+            "is_in": (current_user.id in ride_db.users),
+            "is_owner": (ride_db.created_by == current_user.id),
+        }},
         status_code=status.HTTP_201_CREATED,
     )
 
@@ -53,7 +61,7 @@ async def rides_get_handler(current_user: Annotated[UserDatabase, Depends(get_cu
             {
                 **ride,
                 "created_by": {"id": ride.get("created_by"),
-                               "name": await get_username(ride.get("created_by")),},
+                               "name": await get_username(ride.get("created_by")), },
                 "users": [({"id": user, "name": await get_username(user)}) for user in ride.get("users")],
                 "is_in": (current_user.id in ride.get("users")),
                 "is_owner": (ride.get("created_by") == current_user.id),
@@ -106,5 +114,38 @@ async def rides_get_handler(ride_id: str, ride_req: RideReq,
     await rides_collection.update_one(ride_before, {"$set": jsonable_encoder(update_data)})
     return JSONResponse(
         content=jsonable_encoder(update_data),
+        status_code=status.HTTP_200_OK,
+    )
+
+
+@router.patch("/{ride_id}/join")
+async def ride_join_handler(ride_id: str, current_user: Annotated[UserDatabase, Depends(get_current_user)]):
+    ride = RideDB(**(await rides_collection.find_one({"_id": ride_id})))
+
+    # Server side check to see if user is already a part of the ride
+    if current_user.id in ride.users:
+        return JSONResponse(
+            content={"status": "User already in ride"},
+            status_code=200,
+        )
+
+    # Update operations
+    ride.users.append(current_user.id)
+    ride.last_updated = datetime.now().replace(second=0, microsecond=0)
+
+    await rides_collection.find_one_and_update({"_id": ride_id}, {
+        "$set": jsonable_encoder(ride, by_alias=True)
+    }, return_document=False)
+
+    # Ride is updated in place
+    return JSONResponse(
+        content={
+            **jsonable_encoder(ride, by_alias=False),
+            "created_by": {"id": ride.created_by,
+                           "name": await get_username(ride.created_by), },
+            "users": [({"id": user, "name": await get_username(user)}) for user in ride.users],
+            "is_in": (current_user.id in ride.users),
+            "is_owner": (ride.created_by == current_user.id),
+        },
         status_code=status.HTTP_200_OK,
     )
