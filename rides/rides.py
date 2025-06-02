@@ -28,7 +28,7 @@ async def rides_put_handler(
         ride_req: RideReq,
         current_user: Annotated[UserDatabase, Depends(get_current_user)]
 ) -> JSONResponse:
-    print(type(ride_req),ride_req,)
+    print(type(ride_req), ride_req, )
     ride_db: RideDB = RideDB(_id=str(uuid4()),
                              users=[current_user.id],
                              created_by=current_user.id,
@@ -37,7 +37,7 @@ async def rides_put_handler(
 
     await rides_collection.insert_one(jsonable_encoder(ride_db, by_alias=True))
     return JSONResponse(
-        content={"ride":{
+        content={"ride": {
             **jsonable_encoder(ride_db),
             "created_by": {"id": ride_db.created_by,
                            "name": await get_username(ride_db.created_by), },
@@ -51,7 +51,7 @@ async def rides_put_handler(
 
 @router.get("")
 async def rides_get_handler(current_user: Annotated[UserDatabase, Depends(get_current_user)], lim: int = 10, ):
-    cursor = rides_collection.find().sort("last_updated", -1).limit(lim)
+    cursor = rides_collection.find().sort("date", 1).limit(lim)
     rides = []
     async for ride in cursor:
         ride = {**ride}
@@ -129,6 +129,13 @@ async def ride_join_handler(ride_id: str, current_user: Annotated[UserDatabase, 
             status_code=200,
         )
 
+    # Should never go below zero but in case something goes critically wrong
+    if (ride.total - len(ride.users)) <= 0:
+        return JSONResponse(
+            content={"status": "No place left in the ride"},
+            status_code=200,
+        )
+
     # Update operations
     ride.users.append(current_user.id)
     ride.last_updated = datetime.now().replace(second=0, microsecond=0)
@@ -140,12 +147,12 @@ async def ride_join_handler(ride_id: str, current_user: Annotated[UserDatabase, 
     # Ride is updated in place
     return JSONResponse(
         content={
-            **jsonable_encoder(ride, by_alias=False),
-            "created_by": {"id": ride.created_by,
-                           "name": await get_username(ride.created_by), },
-            "users": [({"id": user, "name": await get_username(user)}) for user in ride.users],
-            "is_in": (current_user.id in ride.users),
-            "is_owner": (ride.created_by == current_user.id),
+            "ride": {**jsonable_encoder(ride, by_alias=False),
+                     "created_by": {"id": ride.created_by,
+                                    "name": await get_username(ride.created_by), },
+                     "users": [({"id": user, "name": await get_username(user)}) for user in ride.users],
+                     "is_in": (current_user.id in ride.users),
+                     "is_owner": (ride.created_by == current_user.id), }
         },
         status_code=status.HTTP_200_OK,
     )
