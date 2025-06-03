@@ -50,6 +50,7 @@ async def InvalidToken_exception_handler(request: Request, exc: InvalidToken):
 async def RideNotFound_exception_handler(request: Request, exc: RideNotFound):
     return JSONResponse(
         content={
+            "ride":None,
             "detail": exc.detail,
             "requested ride id": exc.id,
         },

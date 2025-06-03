@@ -77,24 +77,49 @@ async def rides_get_handler(current_user: Annotated[UserDatabase, Depends(get_cu
 
 @router.get("/{ride_id}")
 async def rides_get_handler(ride_id: str, current_user: Annotated[UserDatabase, Depends(get_current_user)]):
-    ride_res = await rides_collection.find_one({"_id": ride_id})
-    ride_res = {
-        **ride_res,
-        "is_in": ride_res.get("user_ids").includes(current_user.id),
-        "is_owner": (ride_res.get("created_by") == current_user.id),
-    }
-    # is_in and is_owner must be verified by backend again when accepting a change as these requests can
-    # be intercepted and changed
-    if ride_res:
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                "ride": ride_res
-            }
-        )
+    # ride_res = await rides_collection.find_one({"_id": ride_id})
+    # ride_res = {
+    #     **ride_res,
+    #     "is_in": ride_res.get("user_ids").includes(current_user.id),
+    #     "is_owner": (ride_res.get("created_by") == current_user.id),
+    # }
+    # # is_in and is_owner must be verified by backend again when accepting a change as these requests can
+    # # be intercepted and changed
+    # if ride_res:
+    #     return JSONResponse(
+    #         status_code=status.HTTP_200_OK,
+    #         content={
+    #             "ride": ride_res
+    #         }
+    #     )
+    #
+    # else:
+    #     raise RideNotFound('Ride not found', ride_id)
 
-    else:
-        raise RideNotFound('Ride not found', ride_id)
+    ride_res = await rides_collection.find_one({"_id":ride_id})
+
+    if not ride_res:
+        raise RideNotFound('Ride not found',ride_id)
+
+    ride_res = {**ride_res}
+    ride_res["id"] = ride_res["_id"]
+    del ride_res["_id"]
+    ride_res = {
+                **ride_res,
+                "created_by": {"id": ride_res.get("created_by"),
+                               "name": await get_username(ride_res.get("created_by")), },
+                "users": [({"id": user, "name": await get_username(user)}) for user in ride_res.get("users")],
+                "is_in": (current_user.id in ride_res.get("users")),
+                "is_owner": (ride_res.get("created_by") == current_user.id),
+            }
+
+    return JSONResponse(
+        content={"ride":ride_res},
+        status_code=200,
+    )
+
+
+#TODO Add a class that defines the structure of ride response and a function that can transform a ride_db into ride_response.
 
 
 @router.patch("/{ride_id}")
