@@ -6,7 +6,6 @@ import jwt
 from db import db
 from fastapi.params import Header, Cookie
 
-from users.exceptions import InvalidToken
 from users.models import UserDatabase
 
 ALGORITHM = "HS256"

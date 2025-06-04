@@ -13,7 +13,7 @@ from rides.exceptions import RideNotFound
 from users import login,users
 from users.exceptions import InvalidToken, UnauthorizedOperation, UserNotFound
 from users.models import UserDatabase
-
+from Chat import chat
 rides_collection: AsyncCollection[Mapping[str, Any]] = db["rides"]
 
 
@@ -81,7 +81,7 @@ async def UserNotFound_exception_handler(request:Request,exc:UserNotFound):
 app.include_router(login.router)
 app.include_router(rides.router)
 app.include_router(users.router)
-
+app.include_router(chat.router)
 @app.get("/")
 async def base_handler():
     return "Eventually you can hope to get some documentation from this endpoint"
