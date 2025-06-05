@@ -10,7 +10,7 @@ from users.models import UserDatabase
 
 ALGORITHM = "HS256"
 users_collection = db["users"]
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = "9f59d7b47bb6ec95dac2ce1b5f1813d00daa76832cf2171944cc2d4f9a85fdf4"
 
 
 async def get_current_user(access_token:Annotated[str,Cookie()]):

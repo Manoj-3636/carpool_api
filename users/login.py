@@ -17,8 +17,8 @@ from users.exceptions import InvalidToken
 from users.models import UserDatabase, UserReq, ReceivedToken
 
 load_dotenv(override=True)
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-SECRET_KEY = os.getenv("SECRET_KEY")
+GOOGLE_CLIENT_ID = "219249370730-031glq3v7m1rdmi55t3loofukmnbvmpp.apps.googleusercontent.com"
+SECRET_KEY = "9f59d7b47bb6ec95dac2ce1b5f1813d00daa76832cf2171944cc2d4f9a85fdf4"
 users_collection = db["users"]
 ALGORITHM = "HS256"
 router = APIRouter(

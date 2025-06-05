@@ -84,8 +84,8 @@ app.include_router(login.router)
 app.include_router(rides.router)
 app.include_router(users.router)
 app.include_router(chat.router)
-if os.getenv("IS_DEV") == "YES":
-    app.include_router(impersonate.router)
+
+app.include_router(impersonate.router)
 @app.get("/")
 async def base_handler():
     return "Eventually you can hope to get some documentation from this endpoint"

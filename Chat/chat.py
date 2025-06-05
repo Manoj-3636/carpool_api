@@ -35,6 +35,12 @@ async def websocket_handler(websocket: WebSocket, ride_id: str,
     # TODO Check if user has permission to connect to this ride
     await connection_manager.connect(current_user.id, websocket)
     print(len(connection_manager.active_connections))
+    # Send old messages
+
+    for message in (await connection_manager.get_messages()):
+        await websocket.send_json(message)
+
+
 
     try:
         while True:
