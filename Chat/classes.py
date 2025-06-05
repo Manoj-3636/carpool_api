@@ -1,8 +1,6 @@
 from typing import Dict
 
-from fastapi import WebSocket,WebSocketDisconnect
-
-
+from fastapi import WebSocket
 
 # Validation of who sent the message has to be done on the backend itself or else
 # a html request can be crafted to fool the server
@@ -23,15 +21,16 @@ class ConnectionManager:
 
         # Set new connection
         self.active_connections[user_id] = websocket
-        print(f"Connection established with {user_id} current state of connections {self.active_connections}")
+        await self.broadcast(0,user_id,"connect")
+        print(user_id)
 
-    def disconnect(self, user_id: str):
+    async def disconnect(self, user_id: str):
         if user_id in self.active_connections:
-            print(f"Disconnected dead user {user_id} from {self.active_connections}")
             del self.active_connections[user_id]
+            await self.broadcast(0,user_id,"disconnect")
         # Don't call close() here - connection is already closed
 
-    async def broadcast(self,sender_user_id:str,message:str):
+    async def broadcast(self,sender_user_id:int,message:str,type_of):
         dead_connections = []
         print(self.active_connections)
         for user_id in self.active_connections:
@@ -41,13 +40,14 @@ class ConnectionManager:
             try:
                 await self.active_connections[user_id].send_json({
                     "sender":sender_user_id,
-                    "message":message
+                    "type":type_of,
+                    "message":message,
                 })
             except Exception as e:
                 dead_connections.append(user_id)
 
         for dead_user_id in dead_connections:
-            self.disconnect(dead_user_id)
+            await self.disconnect(dead_user_id)
 
 
 class GlobalConnectionManager:

@@ -181,3 +181,34 @@ async def ride_join_handler(ride_id: str, current_user: Annotated[UserDatabase, 
         },
         status_code=status.HTTP_200_OK,
     )
+
+@router.patch("/{ride_id}/leave")
+async def ride_leave_handler(ride_id:str,current_user:Annotated[UserDatabase,Depends(get_current_user)]):
+    ride = RideDB(**(await rides_collection.find_one({"_id": ride_id})))
+
+    # Server side check, if user is not in ride then return an error
+    if current_user.id not in ride.users:
+        return JSONResponse(
+            content={"status":"User is not in the ride, nothing to remove"},
+            status_code = 200,
+        )
+
+    ride.users.remove(current_user.id)
+    ride.last_updated = datetime.now().replace(second=0, microsecond=0)
+
+    await rides_collection.find_one_and_update({"_id": ride_id}, {
+        "$set": jsonable_encoder(ride, by_alias=True)
+    }, return_document=False)
+
+    # Ride is updated in place
+    return JSONResponse(
+        content={
+            "ride": {**jsonable_encoder(ride, by_alias=False),
+                     "created_by": {"id": ride.created_by,
+                                    "name": await get_username(ride.created_by), },
+                     "users": [({"id": user, "name": await get_username(user)}) for user in ride.users],
+                     "is_in": (current_user.id in ride.users),
+                     "is_owner": (ride.created_by == current_user.id), }
+        },
+        status_code=status.HTTP_200_OK,
+    )
