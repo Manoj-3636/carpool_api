@@ -74,7 +74,7 @@ async def login_handler(user:Annotated[UserReq,Depends(user_from_id)]):
     userdb = await check_add_and_return(user)
     jwt = create_access_token({"sub":userdb.id})
     response = JSONResponse(content = {"user":jsonable_encoder(userdb,by_alias=False)})
-    response.set_cookie(key="access_token",value=jwt,httponly=True,secure=False,samesite="lax")
+    response.set_cookie(key="access_token",value=jwt,httponly=True,secure=True,samesite="none")
     # TODO change this in prod
     return response
 
