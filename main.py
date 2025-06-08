@@ -26,7 +26,7 @@ app = FastAPI()
 origins = [
     "http://localhost:3000",
     "http://localhost:4200",
-    "https://capable-kleicha-4c058f.netlify.app",
+    "https://locosync.netlify.app",
 ]
 
 app.add_middleware(
